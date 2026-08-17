@@ -8,6 +8,7 @@ import { characters } from "@/data/characters";
 import { videos } from "@/data/videos";
 import { memories } from "@/data/memories";
 import type { Drawing, DrawingCategory } from "@/data/types";
+import { supabase } from "@/lib/supabase";
 
 type ModalItem = { kind: "drawing" | "character" | "video"; item: Drawing | (typeof characters)[number] | (typeof videos)[number] } | null;
 const nav = [["home","Home"],["profile","은수 소개"],["characters","좋아하는 캐릭터"],["drawings","은수의 그림"],["videos","동영상"],["memories","추억"],["about","About"]];
@@ -26,8 +27,18 @@ export default function EunsuArchive() {
   const [modal, setModal] = useState<ModalItem>(null);
   const [copied, setCopied] = useState(false);
   const [todayIndex, setTodayIndex] = useState(0);
+  const [remoteDrawings, setRemoteDrawings] = useState<Drawing[]>([]);
 
   useEffect(() => { const timer = window.setTimeout(() => setTodayIndex(Math.floor(Math.random() * todayItems.length)), 0); return () => window.clearTimeout(timer); }, []);
+  useEffect(() => {
+    const client = supabase;
+    if (!client) return;
+    const loadDrawings = async () => {
+      const { data } = await client.from("drawings").select("id,title,date,description,category,quote,image_url").order("created_at", { ascending: false });
+      if (data) setRemoteDrawings(data.map(item => ({ id: Number(item.id) + 10000, title: item.title, date: item.date, description: item.description || "", category: (item.category || "기타") as DrawingCategory, quote: item.quote || "", image: item.image_url })));
+    };
+    void loadDrawings();
+  }, []);
   useEffect(() => {
     const observer = new IntersectionObserver(entries => entries.forEach(e => e.isIntersecting && e.target.classList.add("visible")), { threshold: .08 });
     document.querySelectorAll(".reveal").forEach(el => observer.observe(el));
@@ -46,7 +57,8 @@ export default function EunsuArchive() {
       ...videos.map(x => ({ type: "동영상", title: x.title, text: x.description, image: x.thumbnail, go: () => setModal({ kind: "video", item: x }) })),
     ].filter(x => `${x.title} ${x.text}`.toLowerCase().includes(q));
   }, [query]);
-  const filteredDrawings = category === "전체" ? drawings : drawings.filter(d => d.category === category);
+  const allDrawings = [...remoteDrawings, ...drawings];
+  const filteredDrawings = category === "전체" ? allDrawings : allDrawings.filter(d => d.category === category);
 
   const share = async (title: string) => {
     const payload = { title, text: `${title} - 우리 아들 특별한 이은수`, url: window.location.href };
