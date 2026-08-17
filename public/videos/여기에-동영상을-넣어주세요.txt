@@ -1,0 +1,1 @@
+MP4 동영상 파일을 이 폴더에 넣고 data/videos.ts의 videoUrl에 /videos/파일명.mp4 형식으로 적어주세요.
